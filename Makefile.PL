@@ -38,8 +38,8 @@ if (HAVE_MP) {
 name 'HTTP-Engine';
 all_from 'lib/HTTP/Engine.pm';
 
-requires 'Any::Moose'    => '0.08';
-requires 'Mouse'         => '0.21';
+requires 'Any::Moose'    => '0.09';
+requires 'Mouse'         => '0.23';
 requires 'MouseX::Types' => '0.01';
 requires 'Class::Method::Modifiers' => 0; # for 'before / after method modifiers'
 requires 'Scalar::Util'  => 1.19;
@@ -49,7 +49,7 @@ requires 'File::Spec::Unix' => 3.2701;
 
 requires 'CGI::Simple::Cookie' => 1.103;
 requires 'HTTP::Body'          => '1.05';
-requires 'HTTP::Headers::Fast' => 0.09;
+requires 'HTTP::Headers::Fast' => 0.11;
 requires 'URI'                 => 1.36;
 
 # prevent tests from failing with HTTP::Server::Simple is present, but
@@ -129,7 +129,8 @@ WriteAll;
 
 # generate moose's test
 if (HAVE_MOOSE) {
-    warn "generating to Moose's test... please wait few minutes";
+    $| = 1;
+    print "Generating tests with Moose: this could take up to minutes ";
     my @testfiles;
     require File::Find;
     require File::Path;
@@ -170,5 +171,5 @@ if (HAVE_MOOSE) {
             print $to_fh $_;
         }
     }
-    warn "... done";
+    print "... done\n";
 }
