@@ -102,6 +102,10 @@ sub run {
     package # hide from pause
         HTTP::Engine::Request;
 
+    use HTTP::Engine::Request::Upload;
+    $CGI::Simple::DISABLE_UPLOADS = 0;
+    $CGI::Simple::POST_MAX        = 1024 * 1024;  # 1MB
+
     sub new {
         my ($class, ) = @_;
         bless { }, $class;
@@ -116,16 +120,47 @@ sub run {
         $self->{cs} ||= CGI::Simple->new();
         $self->{cs}->param(@_);
     }
-    sub upload {
-        my $self = shift;
-        $self->{cs} ||= CGI::Simple->new();
-        $self->{cs}->upload(@_);
-    }
     sub header {
         my ($self, $key) = @_;
         $key = uc $key;
         $key =~ s/-/_/;
         $ENV{'HTTP_' . $key} || $ENV{'HTTPS_' . $key};
+    }
+    sub uploads {
+        my $self = shift;
+        $self->{uploads} ||= $self->_prepare_uploads;
+    }
+    sub upload {
+        my $self = shift;
+        return keys %{ $self->uploads } if @_ == 0;
+
+        if (@_ == 1) {
+            my $upload = shift;
+            return wantarray ? () : undef unless exists $self->uploads->{$upload};
+            return (wantarray)
+                ? ( $self->uploads->{$upload} )
+                : $self->uploads->{$upload};
+        }
+    }
+    sub _prepare_uploads {
+        my $self = shift;
+
+        $self->{cs} ||= CGI::Simple->new();
+        my $q = $self->{cs};
+
+        my %uploads;
+        for my $name ( keys %{ $q->{".upload_fields"} } ) {
+            my $filename = $q->{".upload_fields"}->{$name};
+            my $headers = HTTP::Headers::Fast->new();
+            $uploads{$name}
+                = HTTP::Engine::Request::Upload->new(
+                    headers  => $headers,
+                    fh       => $q->upload($filename),
+                    size     => $q->upload_info($filename, 'size'),
+                    filename => $filename,
+                );
+        }
+        return \%uploads;
     }
 }
 

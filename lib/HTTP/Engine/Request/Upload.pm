@@ -43,7 +43,7 @@ has fh => (
 sub copy_to {
     my $self = shift;
     require File::Copy;
-    File::Copy::copy( $self->tempname, @_ );
+    File::Copy::copy( ($self->tempname || $self->fh), @_ );
 }
 
 sub link_to {

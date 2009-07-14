@@ -5,9 +5,10 @@ BEGIN {
 }
 use Test::Base;
 use HTTP::Engine::MinimalCGI;
+use IO::Scalar;
 local *HTTP::Headers::Fast::as_string_without_sort = *HTTP::Headers::Fast::as_string;
 
-plan tests => 9;
+plan tests => 11;
 
 sub crlf {
     local $_ = shift;
@@ -169,4 +170,63 @@ Content-Type: text/html
 Status: 200
 
 POST
+
+=== POST from stdin
+--- handler
+$ENV{REQUEST_METHOD} = "POST";
+$ENV{CONTENT_LENGTH} = 15;
+$ENV{CONTENT_TYPE}   = "application/x-www-form-urlencoded";
+my $in = IO::Scalar->new(\"aaa=bbb&ccc=ddd") or die $!;
+local *STDIN = $in;
+
+my $req = shift;
+my $res = HTTP::Engine::Response->new(
+    status => 200,
+    body   => $req->param('aaa') . $req->param('ccc'),
+);
+$res;
+--- response
+Content-Length: 6
+Content-Type: text/html
+Status: 200
+
+bbbddd
+
+=== $req->upload
+--- handler
+$ENV{REQUEST_METHOD} = "POST";
+$ENV{CONTENT_TYPE}   = "multipart/form-data; boundary=----BOUNDARY";
+
+my $stdin =<<'_END_';
+------BOUNDARY
+Content-Disposition: form-data; name="test_upload_file"; filename="yappo.txt"
+Content-Type: text/plain
+
+SHOGUN
+------BOUNDARY--
+
+_END_
+$stdin =~ s/\n/\r\n/g;
+my $in = IO::Scalar->new(\$stdin) or die $!;
+local *STDIN = $in;
+$ENV{CONTENT_LENGTH} = length $stdin;
+
+my $req = shift;
+my $upload = $req->upload('test_upload_file');
+my $res = HTTP::Engine::Response->new(
+    status => 200,
+    body   => sprintf("filename: %s, size: %s, content: %s",
+                  $upload->filename,
+                  $upload->size,
+                  $upload->slurp,
+              ),
+);
+$res;
+--- response
+Content-Length: 45
+Content-Type: text/html
+Status: 200
+
+filename: yappo.txt, size: 6, content: SHOGUN
+
 
